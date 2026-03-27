@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strings"
 	"net/http"
 	"time"
 
@@ -184,7 +185,8 @@ func RefreshToken(config OAuthConfig, refreshToken string) (*AuthResult, error) 
 
 func ValidateToken(accessToken string) error {
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.dropboxapi.com/2/check/user", http.NoBody)
+	body := strings.NewReader(`{"query": ""}`)
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.dropboxapi.com/2/check/user", body)
 	if err != nil {
 		return err
 	}
