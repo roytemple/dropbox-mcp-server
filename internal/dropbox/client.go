@@ -143,7 +143,7 @@ func (c *Client) Upload(path, content, mode string) (*files.FileMetadata, error)
 		commitInfo.Mode = &files.WriteMode{Tagged: dropbox.Tagged{Tag: "add"}}
 	}
 	commitInfo.Autorename = true
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Second)
 	commitInfo.ClientModified = &now
 
 	reader := bytes.NewReader(data)
