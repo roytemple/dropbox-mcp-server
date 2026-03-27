@@ -16,9 +16,18 @@ type Config struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
+func expandHome(path string) string {
+	if len(path) >= 2 && path[:2] == "~/" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
+}
+
 func GetConfigPath() (string, error) {
 	if p := os.Getenv("DROPBOX_MCP_CONFIG_PATH"); p != "" {
-		return p, nil
+		return expandHome(p), nil
 	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
