@@ -17,6 +17,9 @@ type Config struct {
 }
 
 func GetConfigPath() (string, error) {
+	if p := os.Getenv("DROPBOX_MCP_CONFIG_PATH"); p != "" {
+		return p, nil
+	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
