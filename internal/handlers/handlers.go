@@ -31,6 +31,28 @@ func NewHandler() (*Handler, error) {
 	return &Handler{config: cfg}, nil
 }
 
+// reloadConfig re-reads the config file from disk so that token updates
+// persisted by a previous server process (or the auth tool) are picked up.
+func (h *Handler) reloadConfig() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	h.config = cfg
+	return nil
+}
+
+// getClient reloads config from disk and creates a new Dropbox API client.
+// This ensures every API call uses the latest tokens from the config file,
+// which is critical when DROPBOX_MCP_CONFIG_PATH points to a per-instance
+// config and tokens may have been refreshed by a prior server process.
+func (h *Handler) getClient() (*dropbox.Client, error) {
+	if err := h.reloadConfig(); err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	return dropbox.NewClient(h.config)
+}
+
 func (h *Handler) HandleAuth(params json.RawMessage) (interface{}, error) {
 	var args struct {
 		ClientID     string `json:"client_id"`
@@ -77,6 +99,10 @@ func (h *Handler) HandleAuth(params json.RawMessage) (interface{}, error) {
 }
 
 func (h *Handler) HandleCheckAuth(params json.RawMessage) (interface{}, error) {
+	if err := h.reloadConfig(); err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
 	if !h.config.IsTokenValid() {
 		return map[string]interface{}{
 			"authenticated": false,
@@ -107,7 +133,7 @@ func (h *Handler) HandleList(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("invalid parameters: %w", err)
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +181,7 @@ func (h *Handler) HandleSearch(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("query parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +228,7 @@ func (h *Handler) HandleGetMetadata(params json.RawMessage) (interface{}, error)
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +272,7 @@ func (h *Handler) HandleDownload(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +317,7 @@ func (h *Handler) HandleUpload(params json.RawMessage) (interface{}, error) {
 		args.Mode = "add"
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +349,7 @@ func (h *Handler) HandleCreateFolder(params json.RawMessage) (interface{}, error
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +381,7 @@ func (h *Handler) HandleMove(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("from_path and to_path parameters are required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +424,7 @@ func (h *Handler) HandleCopy(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("from_path and to_path parameters are required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +465,7 @@ func (h *Handler) HandleDelete(params json.RawMessage) (interface{}, error) {
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +494,7 @@ func (h *Handler) HandleCreateSharedLink(params json.RawMessage) (interface{}, e
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +519,7 @@ func (h *Handler) HandleListSharedLinks(params json.RawMessage) (interface{}, er
 		return nil, fmt.Errorf("invalid parameters: %w", err)
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +569,7 @@ func (h *Handler) HandleRevokeSharedLink(params json.RawMessage) (interface{}, e
 		return nil, fmt.Errorf("url parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +597,7 @@ func (h *Handler) HandleGetRevisions(params json.RawMessage) (interface{}, error
 		return nil, fmt.Errorf("path parameter is required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +633,7 @@ func (h *Handler) HandleRestoreFile(params json.RawMessage) (interface{}, error)
 		return nil, fmt.Errorf("path and rev parameters are required")
 	}
 
-	client, err := dropbox.NewClient(h.config)
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
